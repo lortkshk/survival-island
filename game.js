@@ -265,11 +265,11 @@ sunLight.castShadow = true;
 sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.camera.near = 0.5;
-sunLight.shadow.camera.far = 200;
-sunLight.shadow.camera.left = -100;
-sunLight.shadow.camera.right = 100;
-sunLight.shadow.camera.top = 100;
-sunLight.shadow.camera.bottom = -100;
+sunLight.shadow.camera.far = 400;
+sunLight.shadow.camera.left = -180;
+sunLight.shadow.camera.right = 180;
+sunLight.shadow.camera.top = 180;
+sunLight.shadow.camera.bottom = -180;
 sunLight.shadow.bias = -0.001;
 scene.add(sunLight);
 
@@ -331,7 +331,7 @@ for (let i = 0; i < 60; i++) {
 }
 const cloudTex = new THREE.CanvasTexture(cloudCanvas);
 cloudTex.wrapS = cloudTex.wrapT = THREE.RepeatWrapping;
-const cloudGeo = new THREE.PlaneGeometry(600, 600);
+const cloudGeo = new THREE.PlaneGeometry(1200, 1200);
 const cloudMat = new THREE.MeshBasicMaterial({
     map: cloudTex, transparent: true, opacity: 0.6,
     side: THREE.DoubleSide, depthWrite: false,
@@ -363,6 +363,12 @@ const ITEM_DEFS = {
     stone_spear:  { icon: '|', name: 'Stone Spear', color: 0x998855, stackMax: 1, damage: 30 },
     campfire:     { icon: 'F', name: 'Campfire', color: 0xFF6600, stackMax: 1 },
     leather_wrap: { icon: 'W', name: 'Leather Wrap', color: 0xAA7744, stackMax: 1, armor: 5 },
+    // New items
+    string:       { icon: '~', name: 'String', color: 0xCCCCCC, stackMax: 20 },
+    fish_raw:     { icon: 'F', name: 'Raw Fish', color: 0x6699CC, stackMax: 10, food: true, healAmount: 20 },
+    fishing_rod:  { icon: 'J', name: 'Fishing Rod', color: 0x8B6B3D, stackMax: 1 },
+    bow:          { icon: 'D', name: 'Bow', color: 0x8B5A2B, stackMax: 1, damage: 40 },
+    arrow:        { icon: '↑', name: 'Arrow', color: 0x888855, stackMax: 30 },
 };
 
 
@@ -370,7 +376,7 @@ const ITEM_DEFS = {
 // 3. TERRAIN - Textured
 // ============================================================
 
-const ISLAND_RADIUS = 80;
+const ISLAND_RADIUS = 150;
 
 // Island ground - now with grass texture
 const islandGeo = new THREE.CircleGeometry(ISLAND_RADIUS, 64);
@@ -394,13 +400,13 @@ beach.receiveShadow = true;
 scene.add(beach);
 
 // Beach extension
-const beachExtGeo = new THREE.CircleGeometry(35, 32);
+const beachExtGeo = new THREE.CircleGeometry(50, 32);
 const beachExtMat = new THREE.MeshStandardMaterial({
     map: TEX.sand, roughness: 0.95, metalness: 0.0
 });
 const beachExt = new THREE.Mesh(beachExtGeo, beachExtMat);
 beachExt.rotation.x = -Math.PI / 2;
-beachExt.position.set(55, 0.06, 0);
+beachExt.position.set(110, 0.06, 0);
 beachExt.receiveShadow = true;
 scene.add(beachExt);
 
@@ -431,7 +437,7 @@ const waterShaderMat = new THREE.ShaderMaterial({
 
             // Fade out waves near the island center so they don't clip through land
             float distFromCenter = length(pos.xy);
-            float islandFade = smoothstep(55.0, 75.0, distFromCenter);
+            float islandFade = smoothstep(120.0, 150.0, distFromCenter);
 
             float totalWave = (wave1 + wave2 + wave3 + wave4) * islandFade;
             pos.z += totalWave;
@@ -483,7 +489,7 @@ const waterShaderMat = new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
 });
 
-const waterGeo = new THREE.PlaneGeometry(800, 800, 150, 150);
+const waterGeo = new THREE.PlaneGeometry(1500, 1500, 200, 200);
 const water = new THREE.Mesh(waterGeo, waterShaderMat);
 water.rotation.x = -Math.PI / 2;
 // Lowered so wave peaks (max ~0.73) stay well below ground level (y=0)
@@ -553,9 +559,9 @@ function createTree(x, z) {
 }
 
 const trees = [];
-for (let i = 0; i < 80; i++) {
-    const x = rand(-70, 20), z = rand(-60, 60);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 10 && distFromCenter(x, z) > 12) {
+for (let i = 0; i < 200; i++) {
+    const x = rand(-140, 100), z = rand(-130, 130);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 10 && distFromCenter(x, z) > 15) {
         trees.push(createTree(x, z));
     }
 }
@@ -593,9 +599,9 @@ function createBush(x, z) {
     colliders.push({ x, z, radius: 0.8 });
 }
 
-for (let i = 0; i < 50; i++) {
-    const x = rand(-65, 30), z = rand(-55, 55);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 8 && distFromCenter(x, z) > 8) createBush(x, z);
+for (let i = 0; i < 120; i++) {
+    const x = rand(-140, 100), z = rand(-130, 130);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 8 && distFromCenter(x, z) > 10) createBush(x, z);
 }
 
 // Palm trees
@@ -662,10 +668,10 @@ function createPalmTree(x, z) {
     colliders.push({ x, z, radius: 0.5 });
 }
 
-for (let i = 0; i < 20; i++) {
-    const x = rand(40, 80), z = rand(-40, 40);
+for (let i = 0; i < 50; i++) {
+    const x = rand(80, 160), z = rand(-80, 80);
     const d = distFromCenter(x, z);
-    if (d < ISLAND_RADIUS + 3 && d > ISLAND_RADIUS - 25) createPalmTree(x, z);
+    if (d < ISLAND_RADIUS + 3 && d > ISLAND_RADIUS - 30) createPalmTree(x, z);
 }
 
 // Rocks
@@ -704,14 +710,14 @@ function createRock(x, z) {
     }
 }
 
-for (let i = 0; i < 45; i++) {
-    const x = rand(-70, 70), z = rand(-70, 70);
+for (let i = 0; i < 100; i++) {
+    const x = rand(-140, 140), z = rand(-140, 140);
     if (distFromCenter(x, z) < ISLAND_RADIUS - 3) createRock(x, z);
 }
 
 // Flowers
-for (let i = 0; i < 120; i++) {
-    const x = rand(-60, 40), z = rand(-60, 60);
+for (let i = 0; i < 300; i++) {
+    const x = rand(-140, 120), z = rand(-130, 130);
     if (distFromCenter(x, z) < ISLAND_RADIUS - 15) {
         const stemGeo = new THREE.CylinderGeometry(0.015, 0.02, rand(0.15, 0.35), 5);
         const stem = new THREE.Mesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x338833, roughness: 0.8 }));
@@ -732,8 +738,8 @@ for (let i = 0; i < 120; i++) {
 }
 
 // Tall grass
-for (let i = 0; i < 200; i++) {
-    const x = rand(-65, 35), z = rand(-60, 60);
+for (let i = 0; i < 500; i++) {
+    const x = rand(-140, 120), z = rand(-130, 130);
     if (distFromCenter(x, z) < ISLAND_RADIUS - 10) {
         const h = rand(0.2, 0.6);
         const gGeo = new THREE.BoxGeometry(0.04, h, 0.04);
@@ -785,6 +791,28 @@ function spawnGroundItem(x, z, type) {
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.y = 0.05;
         group.add(mesh);
+    } else if (type === 'string') {
+        // Coiled string on the ground
+        const stringGeo = new THREE.TorusGeometry(0.1, 0.015, 6, 12);
+        const stringMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.7 });
+        const mesh = new THREE.Mesh(stringGeo, stringMat);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = 0.05;
+        group.add(mesh);
+    } else if (type === 'fish_raw') {
+        // Simple fish shape
+        const fishGeo = new THREE.SphereGeometry(0.12, 10, 8);
+        const fishMat = new THREE.MeshStandardMaterial({ color: 0x6699CC, roughness: 0.5 });
+        const mesh = new THREE.Mesh(fishGeo, fishMat);
+        mesh.scale.set(1.8, 0.5, 0.8);
+        mesh.position.y = 0.08;
+        group.add(mesh);
+        // Tail fin
+        const tailGeo = new THREE.ConeGeometry(0.06, 0.1, 4);
+        const tail = new THREE.Mesh(tailGeo, fishMat);
+        tail.rotation.z = Math.PI / 2;
+        tail.position.set(-0.22, 0.08, 0);
+        group.add(tail);
     }
 
     // Glowing pickup ring
@@ -805,8 +833,8 @@ function spawnGroundItem(x, z, type) {
     return item;
 }
 
-for (let i = 0; i < 30; i++) {
-    const x = rand(-60, 50), z = rand(-55, 55);
+for (let i = 0; i < 80; i++) {
+    const x = rand(-130, 120), z = rand(-130, 130);
     if (distFromCenter(x, z) < ISLAND_RADIUS - 8) {
         spawnGroundItem(x, z, Math.random() > 0.5 ? 'stick' : 'stone');
     }
@@ -1159,9 +1187,9 @@ function createDeer(x, z) {
     };
 }
 
-for (let i = 0; i < 7; i++) {
-    const x = rand(-55, 15), z = rand(-50, 50);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 15)
+for (let i = 0; i < 15; i++) {
+    const x = rand(-130, 100), z = rand(-120, 120);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 20)
         animals.push(createDeer(x, z));
 }
 
@@ -1336,9 +1364,9 @@ function createRabbit(x, z) {
     };
 }
 
-for (let i = 0; i < 10; i++) {
-    const x = rand(-60, 30), z = rand(-55, 55);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 10 && distFromCenter(x, z) > 8)
+for (let i = 0; i < 20; i++) {
+    const x = rand(-130, 100), z = rand(-120, 120);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 10 && distFromCenter(x, z) > 10)
         animals.push(createRabbit(x, z));
 }
 
@@ -1528,9 +1556,9 @@ function createBoar(x, z) {
     };
 }
 
-for (let i = 0; i < 5; i++) {
-    const x = rand(-50, 25), z = rand(-45, 45);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 12)
+for (let i = 0; i < 10; i++) {
+    const x = rand(-130, 100), z = rand(-120, 120);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 15)
         animals.push(createBoar(x, z));
 }
 
@@ -1595,8 +1623,104 @@ function createSeagull(x, z) {
     };
 }
 
-for (let i = 0; i < 8; i++) {
-    animals.push(createSeagull(rand(20, 60), rand(-30, 30)));
+for (let i = 0; i < 12; i++) {
+    animals.push(createSeagull(rand(40, 130), rand(-60, 60)));
+}
+
+
+// ----- SPIDERS -----
+function createSpider(x, z) {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1A1A1A, roughness: 0.7 });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xCC0000, roughness: 0.3, emissive: 0x440000 });
+
+    // Abdomen - large round back section
+    const abdomenGeo = new THREE.SphereGeometry(0.12, 12, 10);
+    const abdomen = new THREE.Mesh(abdomenGeo, bodyMat);
+    abdomen.scale.set(1.0, 0.7, 1.2);
+    abdomen.position.set(-0.1, 0.1, 0);
+    group.add(abdomen);
+
+    // Cephalothorax - front body section (smaller)
+    const headGeo = new THREE.SphereGeometry(0.08, 10, 8);
+    const head = new THREE.Mesh(headGeo, bodyMat);
+    head.scale.set(1.0, 0.7, 0.9);
+    head.position.set(0.1, 0.1, 0);
+    group.add(head);
+
+    // Eyes - two pairs of red dots
+    for (let side = -1; side <= 1; side += 2) {
+        const eGeo = new THREE.SphereGeometry(0.015, 6, 6);
+        const eye = new THREE.Mesh(eGeo, eyeMat);
+        eye.position.set(0.16, 0.14, side * 0.03);
+        group.add(eye);
+        // Smaller back eyes
+        const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 6), eyeMat);
+        e2.position.set(0.14, 0.15, side * 0.05);
+        group.add(e2);
+    }
+
+    // Fangs (chelicerae)
+    for (let side = -1; side <= 1; side += 2) {
+        const fangGeo = new THREE.ConeGeometry(0.008, 0.05, 4);
+        const fangMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+        const fang = new THREE.Mesh(fangGeo, fangMat);
+        fang.position.set(0.17, 0.05, side * 0.02);
+        fang.rotation.z = 0.3;
+        group.add(fang);
+    }
+
+    // 8 Legs - 4 on each side, arching up then down
+    const legs = [];
+    const legAngles = [0.4, 0.15, -0.1, -0.35]; // front to back
+    for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 4; i++) {
+            const legGroup = new THREE.Group();
+
+            // Upper leg segment - goes outward and up
+            const upperGeo = new THREE.CylinderGeometry(0.006, 0.008, 0.15, 4);
+            const upper = new THREE.Mesh(upperGeo, bodyMat);
+            upper.position.y = 0.07;
+            upper.rotation.z = side * -0.6;
+            legGroup.add(upper);
+
+            // Lower leg segment - goes down to the ground
+            const lowerGeo = new THREE.CylinderGeometry(0.004, 0.006, 0.18, 4);
+            const lower = new THREE.Mesh(lowerGeo, bodyMat);
+            lower.position.set(side * 0.12, -0.02, 0);
+            lower.rotation.z = side * 0.4;
+            legGroup.add(lower);
+
+            legGroup.position.set(legAngles[i] * 0.3, 0.1, side * 0.04);
+            group.add(legGroup);
+            legs.push(legGroup);
+        }
+    }
+
+    // Spinnerets (tiny bump at back)
+    const spinGeo = new THREE.SphereGeometry(0.025, 6, 6);
+    const spin = new THREE.Mesh(spinGeo, bodyMat);
+    spin.position.set(-0.22, 0.08, 0);
+    group.add(spin);
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    return {
+        mesh: group, legs, type: 'spider',
+        x, z, speed: rand(2, 4),
+        direction: rand(0, Math.PI * 2),
+        turnTimer: rand(1, 3), walkTimer: 0,
+        fleeing: false, hp: 10, maxHp: 10,
+        loot: [{ type: 'string', count: 2 }],
+        hurtTimer: 0, dead: false, bodyRadius: 0.3,
+    };
+}
+
+for (let i = 0; i < 25; i++) {
+    const x = rand(-130, 100), z = rand(-120, 120);
+    if (distFromCenter(x, z) < ISLAND_RADIUS - 10 && distFromCenter(x, z) > 10)
+        animals.push(createSpider(x, z));
 }
 
 
@@ -1632,7 +1756,7 @@ function updateAnimals(dt) {
         }
 
         const distToPlayer = distXZ(a.x, a.z, player.x, player.z);
-        const fleeDistance = a.type === 'rabbit' ? 6 : 10;
+        const fleeDistance = a.type === 'rabbit' ? 6 : a.type === 'spider' ? 4 : 10;
 
         if (distToPlayer < fleeDistance) {
             a.direction = Math.atan2(a.x - player.x, a.z - player.z);
@@ -1666,32 +1790,43 @@ function updateAnimals(dt) {
         if (a.legs && (a.fleeing || speed > 0.5)) {
             a.walkTimer += dt * speed * 2;
             const intensity = a.fleeing ? 1.5 : 1;
-            a.legs.forEach((leg, idx) => {
-                // Front and back legs move in opposite phase (like real walking)
-                const phase = idx < 2 ? 0 : Math.PI;
-                const swing = Math.sin(a.walkTimer + phase);
 
-                // Hip rotation - the whole leg swings forward/back along Z axis
-                leg.rotation.z = swing * 0.4 * intensity;
+            if (a.type === 'spider') {
+                // Spider legs scuttle rapidly — alternating pairs move in opposite phase
+                a.legs.forEach((leg, idx) => {
+                    const phase = (idx % 2 === 0) ? 0 : Math.PI;
+                    leg.rotation.z = Math.sin(a.walkTimer * 3 + phase) * 0.3 * intensity;
+                    leg.rotation.y = Math.sin(a.walkTimer * 3 + phase + 0.5) * 0.2 * intensity;
+                });
+            } else {
+                a.legs.forEach((leg, idx) => {
+                    // Front and back legs move in opposite phase (like real walking)
+                    const phase = idx < 2 ? 0 : Math.PI;
+                    const swing = Math.sin(a.walkTimer + phase);
 
-                // Bend the lower leg when lifting (knee bend effect)
-                const liftAmount = Math.max(0, swing);
-                const children = leg.children;
-                if (a.type === 'deer' || a.type === 'boar') {
-                    // Lower leg bends backward when lifting
-                    if (children.length >= 4) {
-                        children[3].rotation.z = liftAmount * 0.6 * intensity;
+                    // Hip rotation - the whole leg swings forward/back along Z axis
+                    leg.rotation.z = swing * 0.4 * intensity;
+
+                    // Bend the lower leg when lifting (knee bend effect)
+                    const liftAmount = Math.max(0, swing);
+                    const children = leg.children;
+                    if (a.type === 'deer' || a.type === 'boar') {
+                        // Lower leg bends backward when lifting
+                        if (children.length >= 4) {
+                            children[3].rotation.z = liftAmount * 0.6 * intensity;
+                        }
+                        // Slight knee bend
+                        if (children.length >= 3) {
+                            children[2].rotation.z = liftAmount * 0.3 * intensity;
+                        }
                     }
-                    // Slight knee bend
-                    if (children.length >= 3) {
-                        children[2].rotation.z = liftAmount * 0.3 * intensity;
-                    }
-                }
-            });
+                });
+            }
         } else if (a.legs) {
             // When standing still, smoothly return legs to neutral
             a.legs.forEach(leg => {
                 leg.rotation.z *= 0.9;
+                leg.rotation.y *= 0.9;
                 leg.children.forEach(child => { child.rotation.z *= 0.9; });
             });
         }
@@ -1788,17 +1923,22 @@ function renderInventory() {
         slot.appendChild(keyLabel);
         if (inventory[i]) {
             const def = ITEM_DEFS[inventory[i].type];
+            // Item icon
             const icon = document.createElement('span');
             icon.className = 'slot-icon';
             icon.textContent = def.icon;
             icon.style.color = '#' + def.color.toString(16).padStart(6, '0');
             slot.appendChild(icon);
-            if (inventory[i].count > 1) {
-                const cnt = document.createElement('span');
-                cnt.className = 'slot-count';
-                cnt.textContent = inventory[i].count;
-                slot.appendChild(cnt);
-            }
+            // Item name label (short) so you can clearly see what the item is
+            const nameLabel = document.createElement('span');
+            nameLabel.className = 'slot-name';
+            nameLabel.textContent = def.name.split(' ').pop(); // last word only: "Spear", "Axe"
+            slot.appendChild(nameLabel);
+            // Always show count (even for 1)
+            const cnt = document.createElement('span');
+            cnt.className = 'slot-count';
+            cnt.textContent = inventory[i].count;
+            slot.appendChild(cnt);
             slot.title = def.name + (def.damage ? ` (DMG: ${def.damage})` : '') + (def.food ? ` (Heals: ${def.healAmount})` : '');
         }
         slot.addEventListener('click', () => { selectedSlot = i; renderInventory(); });
@@ -1824,9 +1964,24 @@ const RECIPES = [
     { result: 'stone_spear', resultCount: 1, ingredients: [{ type: 'stick', count: 4 }, { type: 'stone', count: 1 }], name: 'Stone Spear', icon: '|', desc: 'A sharp spear. Deals 30 damage.' },
     { result: 'leather_wrap', resultCount: 1, ingredients: [{ type: 'leather', count: 3 }], name: 'Leather Wrap', icon: 'W', desc: 'Basic armor. +5 protection.' },
     { result: 'campfire', resultCount: 1, ingredients: [{ type: 'stick', count: 5 }, { type: 'stone', count: 3 }], name: 'Campfire', icon: 'F', desc: 'A warm fire. (Decorative)' },
+    { result: 'fishing_rod', resultCount: 1, ingredients: [{ type: 'stick', count: 3 }, { type: 'string', count: 3 }], name: 'Fishing Rod', icon: 'J', desc: 'Catch fish in the sea!' },
+    { result: 'bow', resultCount: 1, ingredients: [{ type: 'stick', count: 4 }, { type: 'string', count: 3 }], name: 'Bow', icon: 'D', desc: 'A ranged weapon. Deals 40 damage.' },
+    { result: 'arrow', resultCount: 5, ingredients: [{ type: 'stick', count: 2 }, { type: 'stone', count: 1 }], name: 'Arrows (x5)', icon: '↑', desc: 'Ammo for your bow.' },
 ];
 
 let craftMenuOpen = false;
+
+// Notification popup for crafting feedback
+function showNotification(msg, color = '#4CAF50') {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%);
+        background:${color};color:white;padding:8px 20px;border-radius:6px;
+        font-size:16px;font-family:monospace;z-index:1000;opacity:1;transition:opacity 0.5s`;
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; }, 1500);
+    setTimeout(() => el.remove(), 2000);
+}
 
 function renderCraftMenu() {
     const container = document.getElementById('craft-recipes');
@@ -1839,8 +1994,22 @@ function renderCraftMenu() {
         div.innerHTML = `<span class="recipe-icon">${recipe.icon}</span><div><div class="recipe-name">${recipe.name}</div><div class="recipe-cost">${costStr}</div><div style="font-size:10px;color:#888">${recipe.desc}</div></div>`;
         if (canCraft) {
             div.addEventListener('click', () => {
+                // Save inventory state so we can rollback if adding fails
+                const savedInv = inventory.map(s => s ? { ...s } : null);
                 recipe.ingredients.forEach(ing => consumeItems(ing.type, ing.count));
-                addToInventory(recipe.result, recipe.resultCount);
+                const added = addToInventory(recipe.result, recipe.resultCount);
+                if (!added) {
+                    // Rollback: restore inventory if crafted item can't fit
+                    for (let i = 0; i < HOTBAR_SIZE; i++) inventory[i] = savedInv[i];
+                    renderInventory();
+                    showNotification('Inventory full!', '#CC3333');
+                } else {
+                    showNotification('Crafted ' + recipe.name + '!');
+                    // Auto-close craft menu so player sees item in inventory
+                    craftMenuOpen = false;
+                    document.getElementById('craft-menu').style.display = 'none';
+                    renderer.domElement.requestPointerLock();
+                }
                 renderCraftMenu();
             });
         }
@@ -1857,6 +2026,126 @@ document.addEventListener('keydown', (e) => {
         else renderer.domElement.requestPointerLock();
     }
 });
+
+
+// ============================================================
+// 8b. FISHING SYSTEM
+// ============================================================
+
+// Fishing state machine: idle -> casting -> waiting -> reeling -> caught
+const fishing = {
+    active: false,       // currently fishing?
+    state: 'idle',       // idle / casting / waiting / reeling
+    timer: 0,            // timer for current state
+    catchTime: 0,        // random time until fish bites
+    bobber: null,        // 3D bobber object in the scene
+};
+
+// Create a bobber mesh (red and white ball)
+function createBobber() {
+    const group = new THREE.Group();
+    const topGeo = new THREE.SphereGeometry(0.08, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const top = new THREE.Mesh(topGeo, new THREE.MeshStandardMaterial({ color: 0xFF0000, roughness: 0.5 }));
+    group.add(top);
+    const botGeo = new THREE.SphereGeometry(0.08, 8, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+    const bot = new THREE.Mesh(botGeo, new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.5 }));
+    group.add(bot);
+    return group;
+}
+
+function startFishing() {
+    // Must be in water and holding fishing rod
+    const held = inventory[selectedSlot];
+    if (!held || held.type !== 'fishing_rod') return;
+    if (!player.inWater) { showNotification('Go to the sea to fish!', '#CC9933'); return; }
+
+    fishing.active = true;
+    fishing.state = 'casting';
+    fishing.timer = 0;
+
+    // Create bobber in front of player
+    if (fishing.bobber) scene.remove(fishing.bobber);
+    fishing.bobber = createBobber();
+    const castDist = 5;
+    fishing.bobber.position.set(
+        player.x - Math.sin(player.yaw) * castDist,
+        0.1,
+        player.z - Math.cos(player.yaw) * castDist
+    );
+    scene.add(fishing.bobber);
+    showNotification('Casting...', '#6699CC');
+}
+
+function updateFishing(dt) {
+    if (!fishing.active) return;
+
+    // Cancel if player unequips rod or leaves water
+    const held = inventory[selectedSlot];
+    if (!held || held.type !== 'fishing_rod' || !player.inWater) {
+        cancelFishing();
+        return;
+    }
+
+    fishing.timer += dt;
+
+    if (fishing.state === 'casting') {
+        // Brief casting animation (0.5s)
+        if (fishing.timer > 0.5) {
+            fishing.state = 'waiting';
+            fishing.timer = 0;
+            fishing.catchTime = rand(3, 8); // random wait time
+            showNotification('Waiting for a bite...', '#6699CC');
+        }
+    } else if (fishing.state === 'waiting') {
+        // Bobber bobs gently
+        if (fishing.bobber) {
+            fishing.bobber.position.y = 0.1 + Math.sin(fishing.timer * 2) * 0.03;
+        }
+        // Fish bites!
+        if (fishing.timer > fishing.catchTime) {
+            fishing.state = 'reeling';
+            fishing.timer = 0;
+            // Bobber dips down to signal the bite
+            if (fishing.bobber) fishing.bobber.position.y = -0.1;
+            showNotification('A fish is biting! Click to reel in!', '#44CC44');
+        }
+    } else if (fishing.state === 'reeling') {
+        // Player has a short window (3s) to click and catch
+        if (fishing.bobber) {
+            fishing.bobber.position.y = -0.1 + Math.sin(fishing.timer * 10) * 0.08;
+        }
+        if (fishing.timer > 3) {
+            showNotification('The fish got away...', '#CC3333');
+            cancelFishing();
+        }
+    }
+}
+
+function reelInFish() {
+    if (!fishing.active || fishing.state !== 'reeling') return false;
+
+    // Caught a fish!
+    const added = addToInventory('fish_raw', 1);
+    if (added) {
+        showNotification('You caught a fish!', '#44CC44');
+    } else {
+        // Drop it on the ground near the player
+        spawnGroundItem(player.x + rand(-1, 1), player.z + rand(-1, 1), 'fish_raw');
+        showNotification('Caught a fish! (dropped - inventory full)', '#CC9933');
+    }
+    cancelFishing();
+    return true;
+}
+
+function cancelFishing() {
+    fishing.active = false;
+    fishing.state = 'idle';
+    fishing.timer = 0;
+    if (fishing.bobber) {
+        scene.remove(fishing.bobber);
+        fishing.bobber = null;
+    }
+}
 
 
 // ============================================================
@@ -1918,19 +2207,288 @@ rightHand.add(middleFinger);
 rightHand.position.set(0.35, -0.25, -0.4);
 handsGroup.add(rightHand);
 
+// ---- HELD WEAPON MODELS ----
+// Mount point at the fist — this is where the hand grips the weapon
+// The fist is at local (0, -0.02, -0.42), so we place the mount there
+const weaponMount = new THREE.Group();
+weaponMount.position.set(0, -0.02, -0.42);
+rightHand.add(weaponMount);
+
+const weaponModels = {};
+
+// -- STONE AXE: held diagonally, handle down in hand, head up and forward --
+(function buildAxe() {
+    const g = new THREE.Group();
+    // Handle — built along Y, we'll rotate the whole group so Y becomes -Z (forward)
+    const handleGeo = new THREE.CylinderGeometry(0.02, 0.025, 0.5, 8);
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x8B6B3D, roughness: 0.8 });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.y = 0.25; // center of handle above grip point
+    g.add(handle);
+    // Stone head at the far end of handle
+    const headGeo = new THREE.BoxGeometry(0.14, 0.08, 0.04);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.7 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0.05, 0.48, 0);
+    g.add(head);
+    // Blade edge
+    const edgeGeo = new THREE.BoxGeometry(0.15, 0.06, 0.015);
+    const edge = new THREE.Mesh(edgeGeo, headMat);
+    edge.position.set(0.08, 0.48, 0);
+    g.add(edge);
+    // Binding wrap where head meets handle
+    const wrapGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.06, 6);
+    const wrapMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.9 });
+    const wrap = new THREE.Mesh(wrapGeo, wrapMat);
+    wrap.position.y = 0.42;
+    g.add(wrap);
+    // Rotate so handle points forward-and-up from the hand
+    // X rotation tilts it forward, Z rotation angles it to the side
+    g.rotation.set(-1.2, 0, -0.2);
+    g.visible = false;
+    weaponMount.add(g);
+    weaponModels.stone_axe = g;
+})();
+
+// -- STONE SPEAR: held forward like pointing, tip away from player --
+(function buildSpear() {
+    const g = new THREE.Group();
+    // Shaft — long, thin
+    const shaftGeo = new THREE.CylinderGeometry(0.015, 0.02, 1.0, 8);
+    const shaftMat = new THREE.MeshStandardMaterial({ color: 0x8B6B3D, roughness: 0.8 });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+    shaft.position.y = 0.3; // grip at the bottom third
+    g.add(shaft);
+    // Stone tip
+    const tipGeo = new THREE.ConeGeometry(0.03, 0.14, 6);
+    const tipMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6 });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.y = 0.84;
+    g.add(tip);
+    // Binding
+    const wrapGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.06, 6);
+    const wrapMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.9 });
+    const wrap = new THREE.Mesh(wrapGeo, wrapMat);
+    wrap.position.y = 0.74;
+    g.add(wrap);
+    // Rotate so spear points forward (-Z) with tip slightly up
+    g.rotation.set(-1.3, 0, -0.1);
+    g.visible = false;
+    weaponMount.add(g);
+    weaponModels.stone_spear = g;
+})();
+
+// -- BOW: held vertically in front, left hand holds the grip --
+(function buildBow() {
+    const g = new THREE.Group();
+    // Bow limb — curved, stays mostly vertical
+    const bowCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, -0.35, 0),
+        new THREE.Vector3(-0.1, -0.18, 0),
+        new THREE.Vector3(-0.14, 0, 0),
+        new THREE.Vector3(-0.1, 0.18, 0),
+        new THREE.Vector3(0, 0.35, 0),
+    ]);
+    const limbGeo = new THREE.TubeGeometry(bowCurve, 16, 0.015, 8, false);
+    const limbMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.7 });
+    g.add(new THREE.Mesh(limbGeo, limbMat));
+    // Bow grip (thicker center)
+    const gripGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.1, 8);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x6B4A2B, roughness: 0.8 });
+    const grip = new THREE.Mesh(gripGeo, gripMat);
+    grip.position.set(-0.14, 0, 0);
+    g.add(grip);
+    // Bowstring — vertical line connecting the two tips
+    const stringGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.7, 4);
+    const stringMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.5 });
+    const bowString = new THREE.Mesh(stringGeo, stringMat);
+    bowString.position.set(0, 0, 0);
+    g.add(bowString);
+    g.bowString = bowString;
+    // Arrow nocked on the string (visible during draw)
+    const arrowGroup = new THREE.Group();
+    const arrowShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.006, 0.006, 0.55, 4),
+        new THREE.MeshStandardMaterial({ color: 0x8B7B3D, roughness: 0.7 })
+    );
+    arrowShaft.position.z = -0.08;
+    arrowGroup.add(arrowShaft);
+    const arrowHead = new THREE.Mesh(
+        new THREE.ConeGeometry(0.015, 0.04, 4),
+        new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.5 })
+    );
+    arrowHead.position.set(0, 0.28, -0.08);
+    arrowGroup.add(arrowHead);
+    // Fletching
+    for (let i = 0; i < 3; i++) {
+        const fGeo = new THREE.BoxGeometry(0.025, 0.04, 0.002);
+        const fMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.6 });
+        const fletch = new THREE.Mesh(fGeo, fMat);
+        fletch.position.set(0, -0.22, -0.08);
+        fletch.rotation.y = (i / 3) * Math.PI * 2;
+        arrowGroup.add(fletch);
+    }
+    arrowGroup.visible = false;
+    g.add(arrowGroup);
+    g.nockedArrow = arrowGroup;
+    // Bow stays mostly vertical, tilted slightly forward
+    g.rotation.set(-0.15, 0, 0.1);
+    g.visible = false;
+    weaponMount.add(g);
+    weaponModels.bow = g;
+})();
+
+// -- FISHING ROD: held forward and slightly up --
+(function buildRod() {
+    const g = new THREE.Group();
+    // Rod shaft — tapers, curves slightly
+    const rodCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0.3, -0.02),
+        new THREE.Vector3(0, 0.55, -0.06),
+        new THREE.Vector3(0, 0.75, -0.14),
+    ]);
+    const rodGeo = new THREE.TubeGeometry(rodCurve, 12, 0.012, 8, false);
+    const rodMat = new THREE.MeshStandardMaterial({ color: 0x8B6B3D, roughness: 0.7 });
+    g.add(new THREE.Mesh(rodGeo, rodMat));
+    // Handle grip — below the grip point
+    const gripGeo = new THREE.CylinderGeometry(0.02, 0.022, 0.14, 8);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x5A3A1A, roughness: 0.9 });
+    const grip = new THREE.Mesh(gripGeo, gripMat);
+    grip.position.y = -0.07;
+    g.add(grip);
+    // Cork handle wrap
+    const corkGeo = new THREE.CylinderGeometry(0.024, 0.024, 0.06, 8);
+    const corkMat = new THREE.MeshStandardMaterial({ color: 0xC4A46A, roughness: 0.8 });
+    const cork = new THREE.Mesh(corkGeo, corkMat);
+    cork.position.y = 0.03;
+    g.add(cork);
+    // Fishing line dangling from tip
+    const lineGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.25, 3);
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.4 });
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.position.set(0, 0.62, -0.14);
+    g.add(line);
+    // Rotate so rod points forward and slightly up
+    g.rotation.set(-1.1, 0, -0.1);
+    g.visible = false;
+    weaponMount.add(g);
+    weaponModels.fishing_rod = g;
+})();
+
+// Track which weapon is currently shown
+let currentWeaponType = null;
+
+// Update visible weapon based on equipped item
+function updateWeaponModel() {
+    const held = inventory[selectedSlot];
+    const newType = (held && weaponModels[held.type]) ? held.type : null;
+
+    if (newType === currentWeaponType) return; // no change
+
+    // Hide old weapon
+    if (currentWeaponType && weaponModels[currentWeaponType]) {
+        weaponModels[currentWeaponType].visible = false;
+    }
+    // Show new weapon
+    if (newType) {
+        weaponModels[newType].visible = true;
+        // Hide fist and loose fingers when holding a weapon
+        // Keep the arm visible, hide the fist block and individual fingers
+        rFist.visible = false;
+        rThumb.visible = false;
+        // Hide the 4 finger meshes (children indices 2-5 of rightHand)
+        for (let fi = 2; fi <= 5; fi++) {
+            if (rightHand.children[fi]) rightHand.children[fi].visible = false;
+        }
+    } else {
+        rFist.visible = true;
+        rThumb.visible = true;
+        for (let fi = 2; fi <= 5; fi++) {
+            if (rightHand.children[fi]) rightHand.children[fi].visible = true;
+        }
+    }
+    // Reset weapon mount rotation when switching
+    weaponMount.rotation.set(0, 0, 0);
+    // Reset bow state
+    handAnim.bowDraw = 0;
+    handAnim.bowDrawing = false;
+    handAnim.bowRelease = false;
+    if (weaponModels.bow && weaponModels.bow.nockedArrow) {
+        weaponModels.bow.nockedArrow.visible = false;
+    }
+    if (weaponModels.bow && weaponModels.bow.bowString) {
+        weaponModels.bow.bowString.scale.z = 1;
+        weaponModels.bow.bowString.position.x = 0;
+    }
+    currentWeaponType = newType;
+}
+
 const handAnim = {
     bobTime: 0,
     punching: false, punchHand: 'left', punchProgress: 0, punchSpeed: 8,
     flipping: false, flipDuration: 2.0, flipTimer: 0,
+    // Bow aiming state
+    bowDraw: 0,       // 0 = rest, 1 = fully drawn
+    bowDrawing: false, // currently drawing the bow
+    bowRelease: false, // just released
+    bowReleaseTimer: 0,
 };
 
 document.addEventListener('mousedown', (e) => {
     if (!mouseLocked || !player.alive || craftMenuOpen) return;
-    if (e.button === 0 && !handAnim.punching && !handAnim.flipping) {
-        handAnim.punching = true;
-        handAnim.punchProgress = 0;
-        handAnim.punchHand = handAnim.punchHand === 'left' ? 'right' : 'left';
-        tryHitAnimal();
+    if (e.button === 0) {
+        // Check if we're fishing
+        if (fishing.active && fishing.state === 'reeling') {
+            reelInFish();
+            return;
+        }
+        // Check if we should start fishing (holding rod in water)
+        const held = inventory[selectedSlot];
+        if (held && held.type === 'fishing_rod' && player.inWater && !fishing.active) {
+            startFishing();
+            return;
+        }
+        // Bow: start drawing back the string
+        if (held && held.type === 'bow' && !handAnim.bowDrawing && !handAnim.bowRelease) {
+            if (hasItem('arrow', 1)) {
+                handAnim.bowDrawing = true;
+                handAnim.bowDraw = 0;
+                // Show the nocked arrow
+                if (weaponModels.bow && weaponModels.bow.nockedArrow) {
+                    weaponModels.bow.nockedArrow.visible = true;
+                }
+            } else {
+                showNotification('No arrows!', '#CC3333');
+            }
+            return;
+        }
+        // Normal melee attack
+        if (!handAnim.punching && !handAnim.flipping) {
+            handAnim.punching = true;
+            handAnim.punchProgress = 0;
+            handAnim.punchHand = handAnim.punchHand === 'left' ? 'right' : 'left';
+            tryHitAnimal();
+        }
+    }
+});
+
+// Bow: release on mouse up
+document.addEventListener('mouseup', (e) => {
+    if (e.button === 0 && handAnim.bowDrawing) {
+        handAnim.bowDrawing = false;
+        // Only fire if drawn enough (at least 50%)
+        if (handAnim.bowDraw > 0.5) {
+            handAnim.bowRelease = true;
+            handAnim.bowReleaseTimer = 0;
+            tryHitAnimal(); // damage check happens here
+        } else {
+            // Cancelled draw — didn't pull far enough
+            handAnim.bowDraw = 0;
+            if (weaponModels.bow && weaponModels.bow.nockedArrow) {
+                weaponModels.bow.nockedArrow.visible = false;
+            }
+        }
     }
 });
 
@@ -1942,6 +2500,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 function updateHands(dt) {
+    // Update which weapon model is visible
+    updateWeaponModel();
+
     const isMoving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
     const bobSpeed = isMoving ? (keys['ShiftLeft'] ? 12 : 8) : 2;
     const bobAmt = isMoving ? (keys['ShiftLeft'] ? 0.04 : 0.025) : 0.008;
@@ -1949,8 +2510,167 @@ function updateHands(dt) {
 
     let lx = -0.35, ly = -0.25 + Math.sin(handAnim.bobTime) * bobAmt, lz = -0.4, lrx = 0;
     let rx = 0.35, ry = -0.25 + Math.sin(handAnim.bobTime + Math.PI) * bobAmt, rz = -0.4, rrx = 0;
+    let rrz = 0; // right hand roll
 
-    if (handAnim.punching) {
+    const held = inventory[selectedSlot];
+    const heldType = held ? held.type : null;
+
+    // When holding any weapon, bring the right hand more toward center so weapon is visible
+    if (heldType && weaponModels[heldType]) {
+        rx = 0.2;  // less far right
+        ry = -0.2 + Math.sin(handAnim.bobTime + Math.PI) * bobAmt;
+        rz = -0.45; // slightly more forward
+    }
+
+    // ---- BOW AIMING & SHOOTING ANIMATION ----
+    if (heldType === 'bow') {
+        // Bow hold: left hand forward holding the bow grip, right hand at string
+        rx = 0.15; ry = -0.15; rz = -0.5;
+        lx = -0.1; ly = -0.15; lz = -0.55;
+
+        // Drawing the bowstring back
+        if (handAnim.bowDrawing) {
+            handAnim.bowDraw = Math.min(1.0, handAnim.bowDraw + dt * 2.0);
+            const draw = handAnim.bowDraw;
+            // Pull right hand back as string is drawn
+            rx = 0.1 + draw * 0.2;
+            rz = -0.45 + draw * 0.15;
+            // Left hand steadies, slight shake at full draw
+            if (draw > 0.9) {
+                lx += Math.sin(handAnim.bobTime * 15) * 0.003;
+                ly += Math.cos(handAnim.bobTime * 12) * 0.003;
+            }
+            // Animate bow model: bend the string back
+            if (weaponModels.bow) {
+                const bstr = weaponModels.bow.bowString;
+                bstr.scale.z = 1 + draw * 2;
+                bstr.position.x = draw * 0.06;
+                // Arrow follows the string
+                const arrow = weaponModels.bow.nockedArrow;
+                if (arrow) {
+                    arrow.position.x = draw * 0.06;
+                    arrow.position.z = -draw * 0.02;
+                }
+            }
+        }
+
+        // Release animation — snap forward
+        if (handAnim.bowRelease) {
+            handAnim.bowReleaseTimer += dt;
+            const t = handAnim.bowReleaseTimer;
+            if (t < 0.15) {
+                // Quick snap — string springs forward, hand jolts
+                const snap = t / 0.15;
+                rx = 0.3 - snap * 0.2;
+                rz = -0.3 - snap * 0.15;
+                ry += snap * 0.03;
+                if (weaponModels.bow) {
+                    weaponModels.bow.bowString.scale.z = 1 + (1 - snap) * 2;
+                    weaponModels.bow.bowString.position.x = (1 - snap) * 0.06;
+                    if (weaponModels.bow.nockedArrow) {
+                        weaponModels.bow.nockedArrow.visible = false;
+                    }
+                }
+            } else if (t < 0.5) {
+                // Settle back to idle
+                const settle = (t - 0.15) / 0.35;
+                rx = 0.1; rz = -0.45;
+                if (weaponModels.bow) {
+                    weaponModels.bow.bowString.scale.z = 1;
+                    weaponModels.bow.bowString.position.x = 0;
+                }
+            } else {
+                handAnim.bowRelease = false;
+                handAnim.bowDraw = 0;
+                if (weaponModels.bow) {
+                    weaponModels.bow.bowString.scale.z = 1;
+                    weaponModels.bow.bowString.position.x = 0;
+                }
+            }
+        }
+    }
+    // ---- SPEAR THRUST ANIMATION ----
+    else if (heldType === 'stone_spear' && handAnim.punching) {
+        handAnim.punchProgress += dt * 10;
+        const p = handAnim.punchProgress;
+        // Spear held more forward and centered
+        rx = 0.15; ry = -0.18; rz = -0.5;
+        // Left hand also grips the spear shaft
+        lx = -0.05; ly = -0.2; lz = -0.55;
+        if (p < 0.2) {
+            // Wind up — pull back
+            const t = p / 0.2;
+            rz = -0.5 + t * 0.2;
+            lz = -0.55 + t * 0.15;
+            ry -= t * 0.05;
+        } else if (p < 0.5) {
+            // Thrust forward fast
+            const t = (p - 0.2) / 0.3;
+            rz = -0.3 - t * 0.4;
+            lz = -0.4 - t * 0.3;
+            ry = -0.23 + t * 0.08;
+        } else if (p < 1.0) {
+            // Pull back to rest
+            const t = (p - 0.5) / 0.5;
+            rz = -0.7 + t * 0.2;
+            lz = -0.7 + t * 0.15;
+            ry = -0.15 - t * 0.03;
+        } else {
+            handAnim.punching = false;
+        }
+    }
+    // ---- AXE CHOP ANIMATION ----
+    else if (heldType === 'stone_axe' && handAnim.punching) {
+        handAnim.punchProgress += dt * 8;
+        const p = handAnim.punchProgress;
+        rx = 0.18; ry = -0.18; rz = -0.45;
+        if (p < 0.3) {
+            // Raise up
+            const t = p / 0.3;
+            ry = -0.2 + t * 0.15;
+            rrz = t * 0.5; // tilt axe head up
+            weaponMount.rotation.z = t * 0.6;
+        } else if (p < 0.6) {
+            // Chop down — fast arc
+            const t = (p - 0.3) / 0.3;
+            ry = -0.05 - t * 0.25;
+            rz = -0.4 - t * 0.15;
+            weaponMount.rotation.z = 0.6 - t * 1.2;
+        } else if (p < 1.0) {
+            // Recovery
+            const t = (p - 0.6) / 0.4;
+            ry = -0.3 + t * 0.1;
+            rz = -0.55 + t * 0.15;
+            weaponMount.rotation.z = -0.6 + t * 0.6;
+        } else {
+            handAnim.punching = false;
+            weaponMount.rotation.z = 0;
+        }
+    }
+    // ---- FISHING ROD CAST ANIMATION ----
+    else if (heldType === 'fishing_rod') {
+        // Hold rod forward and centered
+        rx = 0.18; ry = -0.18; rz = -0.48;
+        if (fishing.active && fishing.state === 'casting') {
+            // Overhead cast sweep
+            const t = fishing.timer / 0.5;
+            if (t < 0.5) {
+                weaponMount.rotation.z = t * 1.5;
+                ry = -0.2 + t * 0.15;
+            } else {
+                weaponMount.rotation.z = 0.75 - (t - 0.5) * 1.5;
+                ry = -0.12 - (t - 0.5) * 0.08;
+            }
+        } else if (fishing.active && fishing.state === 'reeling') {
+            // Jiggle the rod when fish is biting
+            weaponMount.rotation.z = Math.sin(fishing.timer * 15) * 0.15;
+            ry = -0.2 + Math.sin(fishing.timer * 8) * 0.02;
+        } else {
+            weaponMount.rotation.z *= 0.9; // settle back
+        }
+    }
+    // ---- DEFAULT PUNCH (fists or unknown weapon) ----
+    else if (handAnim.punching) {
         handAnim.punchProgress += dt * handAnim.punchSpeed;
         const p = handAnim.punchProgress;
         let pf = 0, pu = 0;
@@ -1962,6 +2682,7 @@ function updateHands(dt) {
         else { rz += pf; ry += pu; rx -= 0.15; rrx = pf * 2; }
     }
 
+    // ---- MIDDLE FINGER FLIP (unchanged) ----
     if (handAnim.flipping) {
         handAnim.flipTimer += dt;
         if (handAnim.flipTimer < 0.3) {
@@ -1979,6 +2700,7 @@ function updateHands(dt) {
         } else { handAnim.flipping = false; middleFinger.visible = false; }
     }
 
+    // Smoothly interpolate hand positions
     const s = 12;
     leftHand.position.x += (lx - leftHand.position.x) * s * dt;
     leftHand.position.y += (ly - leftHand.position.y) * s * dt;
@@ -1988,6 +2710,7 @@ function updateHands(dt) {
     rightHand.position.y += (ry - rightHand.position.y) * s * dt;
     rightHand.position.z += (rz - rightHand.position.z) * s * dt;
     rightHand.rotation.x += (rrx - rightHand.rotation.x) * s * dt;
+    rightHand.rotation.z += (rrz - rightHand.rotation.z) * s * dt;
 }
 
 
@@ -1997,12 +2720,28 @@ function updateHands(dt) {
 
 function getPlayerDamage() {
     const held = inventory[selectedSlot];
-    if (held) { const def = ITEM_DEFS[held.type]; if (def && def.damage) return def.damage; }
+    if (held) {
+        const def = ITEM_DEFS[held.type];
+        if (def && def.damage) {
+            // Bow requires arrows to deal damage
+            if (held.type === 'bow') {
+                if (hasItem('arrow', 1)) {
+                    consumeItems('arrow', 1);
+                    return def.damage;
+                }
+                showNotification('No arrows!', '#CC3333');
+                return 0; // No damage without arrows
+            }
+            return def.damage;
+        }
+    }
     return 8;
 }
 
 function tryHitAnimal() {
-    const reach = 3.5;
+    // Bow has longer reach
+    const held = inventory[selectedSlot];
+    const reach = (held && held.type === 'bow') ? 15 : 3.5;
     const lookX = -Math.sin(player.yaw);
     const lookZ = -Math.cos(player.yaw);
     let closest = null, closestDist = reach;
@@ -2013,7 +2752,9 @@ function tryHitAnimal() {
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist > reach + a.bodyRadius) continue;
         const ndx = dx / dist, ndz = dz / dist;
-        if (ndx * lookX + ndz * lookZ < 0.3) continue;
+        // Bow requires less precise aim since it's ranged
+        const aimThreshold = (held && held.type === 'bow') ? 0.15 : 0.3;
+        if (ndx * lookX + ndz * lookZ < aimThreshold) continue;
         if (dist < closestDist + a.bodyRadius) { closestDist = dist; closest = a; }
     }
     if (closest) damageAnimal(closest, getPlayerDamage());
@@ -2237,7 +2978,7 @@ function updatePlayer(dt) {
         player.y = groundY;
     }
 
-    if (dfi > ISLAND_RADIUS + 25) killPlayer('You swam too far from the island...');
+    if (dfi > ISLAND_RADIUS + 50) killPlayer('You swam too far from the island...');
 
     player.hunger -= dt * 0.4;
     if (player.hunger <= 0) {
@@ -2331,6 +3072,7 @@ function gameLoop() {
     updatePlayer(dt);
     updateHands(dt);
     updateAnimals(dt);
+    updateFishing(dt);
     updateDayNight(dt);
     updateGroundItems(dt);
     updateDamageFlash(dt);
