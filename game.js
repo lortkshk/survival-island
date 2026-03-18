@@ -242,7 +242,8 @@ try {
     composer.addPass(renderPass);
 
     // UnrealBloomPass - adds glow to bright areas (like sunlight, fire, etc.)
-    const bloomPass = new THREE.UnrealBloomPass(
+    // Stored globally so settings can toggle it
+    var bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
         0.3,     // Bloom strength (subtle)
         0.4,     // Radius
@@ -2946,6 +2947,211 @@ function killAnimal(animal) {
 
 
 // ============================================================
+// 10b. PLACED CAMPFIRES
+// ============================================================
+
+const placedCampfires = [];
+
+function createPlacedCampfire(x, z) {
+    const group = new THREE.Group();
+
+    // Stone ring base
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const stoneGeo = new THREE.DodecahedronGeometry(0.15, 0);
+        const stoneMat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color().setHSL(0, 0, rand(0.25, 0.4)), roughness: 0.9
+        });
+        const stone = new THREE.Mesh(stoneGeo, stoneMat);
+        stone.position.set(Math.cos(angle) * 0.45, 0.08, Math.sin(angle) * 0.45);
+        stone.scale.set(rand(0.8, 1.2), rand(0.5, 0.8), rand(0.8, 1.2));
+        stone.rotation.set(rand(0, 1), rand(0, 1), 0);
+        stone.castShadow = true;
+        group.add(stone);
+    }
+
+    // Logs in the center (criss-crossed)
+    for (let i = 0; i < 3; i++) {
+        const logGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.5, 6);
+        const logMat = new THREE.MeshStandardMaterial({ color: 0x4A3520, roughness: 0.9 });
+        const log = new THREE.Mesh(logGeo, logMat);
+        log.position.set(0, 0.1, 0);
+        log.rotation.set(0, (i / 3) * Math.PI, Math.PI / 2 + rand(-0.2, 0.2));
+        group.add(log);
+    }
+
+    // -- FIRE: multiple flame meshes that animate --
+    const fireGroup = new THREE.Group();
+    fireGroup.position.y = 0.15;
+    const flameMat = new THREE.MeshBasicMaterial({
+        color: 0xFF6600, transparent: true, opacity: 0.8,
+        side: THREE.DoubleSide, depthWrite: false
+    });
+    const flameInnerMat = new THREE.MeshBasicMaterial({
+        color: 0xFFCC00, transparent: true, opacity: 0.9,
+        side: THREE.DoubleSide, depthWrite: false
+    });
+
+    const flames = [];
+    // Outer flames
+    for (let i = 0; i < 5; i++) {
+        const fGeo = new THREE.ConeGeometry(0.12 + rand(-0.03, 0.03), 0.5, 6);
+        const flame = new THREE.Mesh(fGeo, flameMat.clone());
+        flame.position.set(rand(-0.1, 0.1), rand(0, 0.1), rand(-0.1, 0.1));
+        flame.rotation.set(rand(-0.2, 0.2), rand(0, Math.PI * 2), rand(-0.2, 0.2));
+        fireGroup.add(flame);
+        flames.push(flame);
+    }
+    // Inner bright flames
+    for (let i = 0; i < 3; i++) {
+        const fGeo = new THREE.ConeGeometry(0.06, 0.35, 5);
+        const flame = new THREE.Mesh(fGeo, flameInnerMat.clone());
+        flame.position.set(rand(-0.05, 0.05), 0.05, rand(-0.05, 0.05));
+        fireGroup.add(flame);
+        flames.push(flame);
+    }
+    group.add(fireGroup);
+
+    // -- POINT LIGHT: illuminates the surroundings --
+    const fireLight = new THREE.PointLight(0xFF8833, 2.5, 18);
+    fireLight.position.set(0, 0.6, 0);
+    fireLight.castShadow = false; // shadows from point lights are expensive
+    group.add(fireLight);
+
+    // -- SMOKE PARTICLES: simple rising spheres --
+    const smokeParticles = [];
+    const smokeMat = new THREE.MeshBasicMaterial({
+        color: 0x888888, transparent: true, opacity: 0.3, depthWrite: false
+    });
+    for (let i = 0; i < 8; i++) {
+        const sGeo = new THREE.SphereGeometry(rand(0.04, 0.1), 6, 6);
+        const smoke = new THREE.Mesh(sGeo, smokeMat.clone());
+        smoke.position.set(rand(-0.15, 0.15), rand(0.5, 2.5), rand(-0.15, 0.15));
+        smoke.userData.speed = rand(0.3, 0.8);
+        smoke.userData.resetY = rand(0.5, 0.8);
+        smoke.userData.driftX = rand(-0.2, 0.2);
+        smoke.userData.driftZ = rand(-0.2, 0.2);
+        group.add(smoke);
+        smokeParticles.push(smoke);
+    }
+
+    // -- EMBERS: tiny bright dots floating up --
+    const embers = [];
+    const emberMat = new THREE.MeshBasicMaterial({ color: 0xFF4400 });
+    for (let i = 0; i < 6; i++) {
+        const eGeo = new THREE.SphereGeometry(0.015, 4, 4);
+        const ember = new THREE.Mesh(eGeo, emberMat.clone());
+        ember.position.set(rand(-0.2, 0.2), rand(0.2, 1.5), rand(-0.2, 0.2));
+        ember.userData.speed = rand(0.5, 1.5);
+        ember.userData.resetY = rand(0.2, 0.4);
+        group.add(ember);
+        embers.push(ember);
+    }
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    const campfire = {
+        mesh: group, x, z,
+        flames, fireLight, smokeParticles, embers, fireGroup,
+        time: rand(0, 10), // random phase so fires don't flicker in sync
+        burnRadius: 1.2,   // how close you need to be to get burned
+    };
+    placedCampfires.push(campfire);
+    colliders.push({ x, z, radius: 0.6 });
+    return campfire;
+}
+
+// Update all placed campfires: animate fire, smoke, embers, and burn player
+function updateCampfires(dt) {
+    for (const cf of placedCampfires) {
+        cf.time += dt;
+
+        // Animate flames — flicker by scaling and rotating
+        cf.flames.forEach((flame, i) => {
+            const phase = cf.time * 8 + i * 1.7;
+            flame.scale.y = 0.7 + Math.sin(phase) * 0.3 + Math.sin(phase * 2.3) * 0.15;
+            flame.scale.x = 0.8 + Math.sin(phase * 1.5) * 0.2;
+            flame.scale.z = flame.scale.x;
+            flame.rotation.y += dt * (2 + i * 0.5);
+            flame.material.opacity = 0.6 + Math.sin(phase * 3) * 0.2;
+        });
+
+        // Flicker the light intensity
+        cf.fireLight.intensity = 2.0 + Math.sin(cf.time * 10) * 0.5 + Math.sin(cf.time * 7) * 0.3;
+        cf.fireLight.color.setHSL(0.07 + Math.sin(cf.time * 5) * 0.02, 0.9, 0.55);
+
+        // Animate smoke — rise up, fade out, reset
+        cf.smokeParticles.forEach(smoke => {
+            smoke.position.y += smoke.userData.speed * dt;
+            smoke.position.x += smoke.userData.driftX * dt;
+            smoke.position.z += smoke.userData.driftZ * dt;
+            smoke.material.opacity = Math.max(0, 0.3 - (smoke.position.y - 0.5) * 0.1);
+            smoke.scale.setScalar(1 + (smoke.position.y - 0.5) * 0.5);
+            // Reset when too high
+            if (smoke.position.y > 3.5) {
+                smoke.position.set(rand(-0.15, 0.15), smoke.userData.resetY, rand(-0.15, 0.15));
+                smoke.material.opacity = 0.3;
+                smoke.scale.setScalar(1);
+            }
+        });
+
+        // Animate embers — float up with slight wander
+        cf.embers.forEach(ember => {
+            ember.position.y += ember.userData.speed * dt;
+            ember.position.x += Math.sin(cf.time * 3 + ember.userData.speed * 10) * 0.3 * dt;
+            ember.position.z += Math.cos(cf.time * 2.5 + ember.userData.speed * 7) * 0.3 * dt;
+            ember.material.opacity = Math.max(0, 1 - (ember.position.y - 0.2) * 0.5);
+            if (ember.position.y > 2.5 || ember.material.opacity <= 0) {
+                ember.position.set(rand(-0.2, 0.2), ember.userData.resetY, rand(-0.2, 0.2));
+                ember.material.opacity = 1;
+            }
+        });
+
+        // Burn the player if they step too close
+        if (player.alive) {
+            const dist = distXZ(player.x, player.z, cf.x, cf.z);
+            if (dist < cf.burnRadius) {
+                player.hp -= dt * 15; // 15 damage per second
+                damageFlashTimer = 0.15;
+                document.getElementById('damage-flash').style.background = 'rgba(255,100,0,0.3)';
+                if (player.hp <= 0) {
+                    player.hp = 0;
+                    killPlayer('You burned to death...');
+                }
+                updateHealthBars();
+            }
+        }
+    }
+}
+
+// Place a campfire from inventory
+function placeCampfire() {
+    const held = inventory[selectedSlot];
+    if (!held || held.type !== 'campfire') return;
+    if (player.inWater) { showNotification("Can't place fire in water!", '#CC3333'); return; }
+
+    // Place 2 units in front of player
+    const px = player.x - Math.sin(player.yaw) * 2;
+    const pz = player.z - Math.cos(player.yaw) * 2;
+
+    createPlacedCampfire(px, pz);
+    removeFromInventory(selectedSlot, 1);
+    showNotification('Placed campfire!', '#FF8833');
+}
+
+// Q key to place campfire
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyQ' && player.alive && mouseLocked && !craftMenuOpen && !settingsOpen) {
+        const held = inventory[selectedSlot];
+        if (held && held.type === 'campfire') {
+            placeCampfire();
+        }
+    }
+});
+
+
+// ============================================================
 // 11. DAY/NIGHT CYCLE
 // ============================================================
 
@@ -3025,6 +3231,8 @@ function getTimeString() {
 const settings = {
     mouseSensitivity: 0.002, // default mouse look speed
     timeSpeed: 1.0,          // time multiplier (1 = normal, 0 = frozen, 5 = fast)
+    quality: 'high',         // low, medium, high
+    shadows: true,           // shadows on/off
 };
 
 let settingsOpen = false;
@@ -3067,6 +3275,27 @@ function createSettingsMenu() {
             </div>
         </div>
 
+        <div style="margin-bottom:18px;">
+            <label style="font-size:14px;color:#aaa;">Graphics Quality</label>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button id="q-low" class="q-btn" style="flex:1;padding:8px;border:2px solid #555;border-radius:6px;
+                    background:rgba(255,255,255,0.05);color:#ccc;cursor:pointer;font-family:monospace;font-size:13px;">Low</button>
+                <button id="q-medium" class="q-btn" style="flex:1;padding:8px;border:2px solid #555;border-radius:6px;
+                    background:rgba(255,255,255,0.05);color:#ccc;cursor:pointer;font-family:monospace;font-size:13px;">Medium</button>
+                <button id="q-high" class="q-btn" style="flex:1;padding:8px;border:2px solid #ddaa55;border-radius:6px;
+                    background:rgba(221,170,85,0.15);color:#ddaa55;cursor:pointer;font-family:monospace;font-size:13px;">High</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:14px;color:#aaa;">Shadows</label>
+            <div style="margin-top:6px;">
+                <label style="cursor:pointer;font-size:13px;color:#ccc;">
+                    <input type="checkbox" id="shadow-toggle" checked style="accent-color:#66bbdd;"> Enable shadows
+                </label>
+            </div>
+        </div>
+
         <div style="margin-bottom:10px;">
             <label style="font-size:14px;color:#aaa;">FPS Counter</label>
             <div style="margin-top:6px;">
@@ -3102,11 +3331,99 @@ function createSettingsMenu() {
         tsValue.textContent = settings.timeSpeed === 0 ? 'Frozen' : settings.timeSpeed.toFixed(1) + 'x';
     });
 
+    // Quality buttons
+    ['low', 'medium', 'high'].forEach(level => {
+        document.getElementById('q-' + level).addEventListener('click', () => {
+            applyQuality(level);
+        });
+    });
+
+    // Shadow toggle
+    const shadowToggle = document.getElementById('shadow-toggle');
+    shadowToggle.addEventListener('change', () => {
+        settings.shadows = shadowToggle.checked;
+        renderer.shadowMap.enabled = settings.shadows;
+        // Update all objects
+        scene.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = settings.shadows;
+                child.receiveShadow = settings.shadows;
+            }
+            // Force shadow map to update
+            if (child.isLight && child.shadow) {
+                child.castShadow = settings.shadows;
+            }
+        });
+        renderer.shadowMap.needsUpdate = true;
+    });
+
     // FPS toggle
     const fpsToggle = document.getElementById('fps-toggle');
     fpsToggle.addEventListener('change', () => {
         document.getElementById('fps-counter').style.display = fpsToggle.checked ? 'block' : 'none';
     });
+}
+
+// Apply graphics quality preset
+function applyQuality(level) {
+    settings.quality = level;
+
+    // Update button styles to show which is selected
+    ['low', 'medium', 'high'].forEach(l => {
+        const btn = document.getElementById('q-' + l);
+        if (l === level) {
+            btn.style.borderColor = '#ddaa55';
+            btn.style.background = 'rgba(221,170,85,0.15)';
+            btn.style.color = '#ddaa55';
+        } else {
+            btn.style.borderColor = '#555';
+            btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.style.color = '#ccc';
+        }
+    });
+
+    if (level === 'low') {
+        // Low: no bloom, no shadows, lower pixel ratio
+        if (typeof bloomPass !== 'undefined' && bloomPass) bloomPass.enabled = false;
+        renderer.shadowMap.enabled = false;
+        renderer.setPixelRatio(1);
+        renderer.shadowMap.needsUpdate = true;
+        settings.shadows = false;
+        document.getElementById('shadow-toggle').checked = false;
+        showNotification('Quality: Low (best FPS)', '#66bbdd');
+    } else if (level === 'medium') {
+        // Medium: bloom on, shadows off, normal pixel ratio
+        if (typeof bloomPass !== 'undefined' && bloomPass) bloomPass.enabled = true;
+        renderer.shadowMap.enabled = false;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.shadowMap.needsUpdate = true;
+        settings.shadows = false;
+        document.getElementById('shadow-toggle').checked = false;
+        showNotification('Quality: Medium', '#ddaa55');
+    } else {
+        // High: everything on
+        if (typeof bloomPass !== 'undefined' && bloomPass) bloomPass.enabled = true;
+        renderer.shadowMap.enabled = true;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.needsUpdate = true;
+        settings.shadows = true;
+        document.getElementById('shadow-toggle').checked = true;
+        // Re-enable shadows on all objects
+        scene.traverse(child => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+            if (child.isLight && child.shadow) {
+                child.castShadow = true;
+            }
+        });
+        showNotification('Quality: High', '#44CC44');
+    }
+
+    // Resize renderer to apply pixel ratio change
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function getTimeName(t) {
@@ -3378,6 +3695,7 @@ function gameLoop() {
     updateHands(dt);
     updateAnimals(dt);
     updateFishing(dt);
+    updateCampfires(dt);
     updateDayNight(dt);
     updateGroundItems(dt);
     updateDamageFlash(dt);
