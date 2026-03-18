@@ -848,6 +848,130 @@ for (let i = 0; i < 80; i++) {
 // canvas fur textures, and MeshStandardMaterial for PBR lighting.
 
 // ----- DEER -----
+// ---- GLTF MODEL LOADING SYSTEM ----
+// Loads a 3D model file (.glb) and stores it for cloning
+const gltfLoader = new THREE.GLTFLoader();
+const loadedModels = {}; // cache: { modelName: { scene, animations } }
+const animationMixers = []; // all active animation mixers, updated each frame
+
+// Load a model and call onLoaded(scene, animations) when ready
+function loadModel(name, path, onLoaded) {
+    if (loadedModels[name]) {
+        onLoaded(loadedModels[name].scene.clone(), loadedModels[name].animations);
+        return;
+    }
+    gltfLoader.load(path, (gltf) => {
+        loadedModels[name] = { scene: gltf.scene, animations: gltf.animations };
+        onLoaded(gltf.scene, gltf.animations);
+    }, undefined, (err) => {
+        console.warn('Could not load model ' + name + ':', err);
+    });
+}
+
+// Old manual clone functions removed — using THREE.SkeletonUtils.clone() instead
+
+// Create a deer using GLTF model (with fallback to procedural if model not loaded)
+let stagModelReady = false;
+
+// Try to load the stag model
+loadModel('stag', 'Stag.glb', (loadedScene, animations) => {
+    stagModelReady = true;
+    console.log('Stag model loaded! Animations:', animations.map(a => a.name));
+    // Debug: log all meshes in the model
+    loadedScene.traverse(child => {
+        if (child.isMesh) {
+            console.log('Mesh:', child.name, 'type:', child.type, 'visible:', child.visible,
+                'material:', child.material.type, 'skinned:', child.isSkinnedMesh);
+        }
+    });
+
+    // Remove procedural fallback deer and replace with GLTF deer
+    for (let i = animals.length - 1; i >= 0; i--) {
+        if (animals[i].type === 'deer' && !animals[i].isGLTF) {
+            scene.remove(animals[i].mesh);
+            animals.splice(i, 1);
+        }
+    }
+    // Spawn new GLTF deer
+    spawnGLTFDeer();
+});
+
+// Spawn deer by loading ONCE and cloning with SkeletonUtils
+function spawnGLTFDeer() {
+    for (let i = 0; i < 15; i++) {
+        const x = rand(-130, 100), z = rand(-120, 120);
+        if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 20) {
+            // Clone using SkeletonUtils — properly handles skinned meshes
+            const clone = THREE.SkeletonUtils.clone(loadedModels['stag'].scene);
+            const deer = createDeerFromGLTF(clone, loadedModels['stag'].animations, x, z);
+            animals.push(deer);
+        }
+    }
+}
+
+function createDeerFromGLTF(model, animations, x, z) {
+    // Clone materials so each deer can flash red independently
+    model.traverse(child => {
+        if (child.isMesh) {
+            child.material = child.material.clone();
+            child.material.side = THREE.DoubleSide;
+            child.material.transparent = false;
+            child.material.depthWrite = true;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+        }
+    });
+
+    // Scale to fit game world — adjust this number to resize
+    const s = 0.5;
+    model.scale.set(s, s, s);
+    model.position.set(x, 0, z);
+    scene.add(model);
+
+    // Set up animation mixer for this deer
+    const mixer = new THREE.AnimationMixer(model);
+    animationMixers.push(mixer);
+
+    // Find and store animation clips by name
+    const clips = {};
+    animations.forEach(clip => {
+        clips[clip.name.toLowerCase()] = clip;
+    });
+
+    // Try to play idle animation by default, fallback to first clip
+    let currentAction = null;
+    const idleClip = clips['idle'] || clips['idle_2'] || clips['eating'] || animations[0];
+    if (idleClip) {
+        currentAction = mixer.clipAction(idleClip);
+        currentAction.play();
+    }
+
+    // Find walk/run clips for movement
+    const walkClip = clips['walk'] || clips['walking'] || clips['walk_cycle'] || clips['trot'];
+    const runClip = clips['gallop'] || clips['run'] || clips['running'] || clips['gallop_jump'];
+
+    return {
+        mesh: model, legs: null, type: 'deer',
+        x, z, speed: rand(1.5, 2.5),
+        direction: rand(0, Math.PI * 2),
+        turnTimer: rand(3, 7), walkTimer: 0,
+        fleeing: false, hp: 60, maxHp: 60,
+        loot: [{ type: 'meat_raw', count: 2 }, { type: 'leather', count: 2 }],
+        hurtTimer: 0, dead: false, bodyRadius: 1.5,
+        // GLTF-specific properties
+        isGLTF: true,
+        mixer: mixer,
+        clips: clips,
+        currentAction: currentAction,
+        walkClip: walkClip,
+        runClip: runClip,
+        idleClip: idleClip,
+        wasMoving: false,
+    };
+}
+
+// Original procedural deer (fallback if model doesn't load)
 function createDeer(x, z) {
     const group = new THREE.Group();
     const furMat = new THREE.MeshStandardMaterial({ map: TEX.deerFur, roughness: 0.9, metalness: 0.0 });
@@ -1187,10 +1311,13 @@ function createDeer(x, z) {
     };
 }
 
-for (let i = 0; i < 15; i++) {
-    const x = rand(-130, 100), z = rand(-120, 120);
-    if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 20)
-        animals.push(createDeer(x, z));
+// Procedural deer spawned as fallback — will be replaced by GLTF deer when model loads
+if (!stagModelReady) {
+    for (let i = 0; i < 15; i++) {
+        const x = rand(-130, 100), z = rand(-120, 120);
+        if (distFromCenter(x, z) < ISLAND_RADIUS - 15 && distFromCenter(x, z) > 20)
+            animals.push(createDeer(x, z));
+    }
 }
 
 
@@ -1782,7 +1909,40 @@ function updateAnimals(dt) {
 
         a.mesh.position.x = a.x;
         a.mesh.position.z = a.z;
-        // Rotate -PI/2 so the model's +X front aligns with the +Z movement direction
+
+        // GLTF models handle their own animations via mixer
+        if (a.isGLTF) {
+            // GLTF models typically face +Z or -Z, adjust rotation accordingly
+            a.mesh.rotation.y = a.direction;
+
+            // Switch animations based on movement state
+            const isMoving = a.fleeing || speed > 0.5;
+            if (isMoving && !a.wasMoving) {
+                // Switch to walk/run animation
+                const clip = a.fleeing ? (a.runClip || a.walkClip) : a.walkClip;
+                if (clip && a.mixer) {
+                    if (a.currentAction) a.currentAction.fadeOut(0.3);
+                    a.currentAction = a.mixer.clipAction(clip);
+                    a.currentAction.reset().fadeIn(0.3).play();
+                    // Speed up animation when fleeing
+                    a.currentAction.timeScale = a.fleeing ? 2.0 : 1.0;
+                }
+                a.wasMoving = true;
+            } else if (!isMoving && a.wasMoving) {
+                // Switch back to idle animation
+                if (a.idleClip && a.mixer) {
+                    if (a.currentAction) a.currentAction.fadeOut(0.3);
+                    a.currentAction = a.mixer.clipAction(a.idleClip);
+                    a.currentAction.reset().fadeIn(0.3).play();
+                }
+                a.wasMoving = false;
+            }
+            // Update the animation mixer every frame
+            if (a.mixer) a.mixer.update(dt);
+            continue; // skip procedural leg animation for GLTF deer
+        }
+
+        // Rotate -PI/2 so the procedural model's +X front aligns with the +Z movement direction
         a.mesh.rotation.y = a.direction - Math.PI / 2;
 
         // Realistic leg animation: bend at the knee/hock joint
@@ -2775,6 +2935,12 @@ function killAnimal(animal) {
             spawnGroundItem(animal.x + rand(-1, 1), animal.z + rand(-1, 1), l.type);
         }
     });
+    // Clean up animation mixer for GLTF models
+    if (animal.mixer) {
+        animal.mixer.stopAllAction();
+        const idx = animationMixers.indexOf(animal.mixer);
+        if (idx !== -1) animationMixers.splice(idx, 1);
+    }
     scene.remove(animal.mesh);
 }
 
@@ -2792,7 +2958,7 @@ const dayNight = {
 };
 
 function updateDayNight(dt) {
-    dayNight.time = (dayNight.time + dt * dayNight.speed) % 1.0;
+    dayNight.time = (dayNight.time + dt * dayNight.speed * settings.timeSpeed) % 1.0;
     const t = dayNight.time;
     const sunAngle = t * Math.PI * 2 - Math.PI / 2;
     const sunH = Math.sin(sunAngle);
@@ -2852,6 +3018,135 @@ function getTimeString() {
 // 12. PLAYER
 // ============================================================
 
+// ============================================================
+// SETTINGS
+// ============================================================
+
+const settings = {
+    mouseSensitivity: 0.002, // default mouse look speed
+    timeSpeed: 1.0,          // time multiplier (1 = normal, 0 = frozen, 5 = fast)
+};
+
+let settingsOpen = false;
+
+function createSettingsMenu() {
+    const menu = document.createElement('div');
+    menu.id = 'settings-menu';
+    menu.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+        background:rgba(20,20,30,0.92);border:2px solid #4488aa;border-radius:10px;
+        padding:25px 35px;color:white;z-index:160;display:none;min-width:320px;
+        font-family:monospace;`;
+
+    menu.innerHTML = `
+        <h2 style="text-align:center;color:#66bbdd;margin:0 0 20px 0;font-size:22px;">Settings  [ESC to close]</h2>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:14px;color:#aaa;">Mouse Sensitivity</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <input type="range" id="sens-slider" min="0.0005" max="0.008" step="0.0005" value="0.002"
+                    style="flex:1;cursor:pointer;accent-color:#66bbdd;">
+                <span id="sens-value" style="font-size:14px;min-width:40px;color:#66bbdd;">2.0</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:14px;color:#aaa;">Time of Day</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <input type="range" id="time-slider" min="0" max="1" step="0.01" value="0.3"
+                    style="flex:1;cursor:pointer;accent-color:#ddaa55;">
+                <span id="time-label" style="font-size:14px;min-width:60px;color:#ddaa55;">Morning</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="font-size:14px;color:#aaa;">Time Speed</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <input type="range" id="timespeed-slider" min="0" max="10" step="0.5" value="1"
+                    style="flex:1;cursor:pointer;accent-color:#ddaa55;">
+                <span id="timespeed-value" style="font-size:14px;min-width:40px;color:#ddaa55;">1.0x</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom:10px;">
+            <label style="font-size:14px;color:#aaa;">FPS Counter</label>
+            <div style="margin-top:6px;">
+                <label style="cursor:pointer;font-size:13px;color:#ccc;">
+                    <input type="checkbox" id="fps-toggle" style="accent-color:#66bbdd;"> Show FPS on screen
+                </label>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(menu);
+
+    // Sensitivity slider
+    const sensSlider = document.getElementById('sens-slider');
+    const sensValue = document.getElementById('sens-value');
+    sensSlider.addEventListener('input', () => {
+        settings.mouseSensitivity = parseFloat(sensSlider.value);
+        sensValue.textContent = (settings.mouseSensitivity * 1000).toFixed(1);
+    });
+
+    // Time of day slider
+    const timeSlider = document.getElementById('time-slider');
+    const timeLabel = document.getElementById('time-label');
+    timeSlider.addEventListener('input', () => {
+        dayNight.time = parseFloat(timeSlider.value);
+        timeLabel.textContent = getTimeName(dayNight.time);
+    });
+
+    // Time speed slider
+    const tsSlider = document.getElementById('timespeed-slider');
+    const tsValue = document.getElementById('timespeed-value');
+    tsSlider.addEventListener('input', () => {
+        settings.timeSpeed = parseFloat(tsSlider.value);
+        tsValue.textContent = settings.timeSpeed === 0 ? 'Frozen' : settings.timeSpeed.toFixed(1) + 'x';
+    });
+
+    // FPS toggle
+    const fpsToggle = document.getElementById('fps-toggle');
+    fpsToggle.addEventListener('change', () => {
+        document.getElementById('fps-counter').style.display = fpsToggle.checked ? 'block' : 'none';
+    });
+}
+
+function getTimeName(t) {
+    if (t < 0.15) return 'Night';
+    if (t < 0.25) return 'Dawn';
+    if (t < 0.4) return 'Morning';
+    if (t < 0.6) return 'Midday';
+    if (t < 0.75) return 'Afternoon';
+    if (t < 0.85) return 'Sunset';
+    return 'Night';
+}
+
+function toggleSettings() {
+    settingsOpen = !settingsOpen;
+    document.getElementById('settings-menu').style.display = settingsOpen ? 'block' : 'none';
+    if (settingsOpen) {
+        document.exitPointerLock();
+        // Sync sliders to current values
+        document.getElementById('sens-slider').value = settings.mouseSensitivity;
+        document.getElementById('sens-value').textContent = (settings.mouseSensitivity * 1000).toFixed(1);
+        document.getElementById('time-slider').value = dayNight.time;
+        document.getElementById('time-label').textContent = getTimeName(dayNight.time);
+        document.getElementById('timespeed-slider').value = settings.timeSpeed;
+        document.getElementById('timespeed-value').textContent = settings.timeSpeed === 0 ? 'Frozen' : settings.timeSpeed.toFixed(1) + 'x';
+    } else {
+        renderer.domElement.requestPointerLock();
+    }
+}
+
+// Build settings menu on load
+createSettingsMenu();
+
+// FPS counter element
+const fpsEl = document.createElement('div');
+fpsEl.id = 'fps-counter';
+fpsEl.style.cssText = `position:fixed;top:8px;right:10px;color:#0f0;font-family:monospace;
+    font-size:14px;z-index:10;display:none;text-shadow:1px 1px 2px #000;`;
+document.body.appendChild(fpsEl);
+let fpsFrames = 0, fpsLastTime = performance.now();
+
 const player = {
     x: 0, z: 0, y: 1.65,
     yaw: 0, pitch: 0,
@@ -2873,9 +3168,9 @@ document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 let mouseLocked = false;
 
 document.addEventListener('mousemove', (e) => {
-    if (!mouseLocked || !player.alive) return;
-    player.yaw -= e.movementX * 0.002;
-    player.pitch -= e.movementY * 0.002;
+    if (!mouseLocked || !player.alive || settingsOpen) return;
+    player.yaw -= e.movementX * settings.mouseSensitivity;
+    player.pitch -= e.movementY * settings.mouseSensitivity;
     player.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, player.pitch));
 });
 
@@ -2893,6 +3188,16 @@ document.addEventListener('pointerlockchange', () => {
 document.addEventListener('keydown', (e) => {
     if (e.code === 'KeyE' && player.alive) tryPickup();
     if (e.code === 'KeyF' && player.alive) tryEat();
+    if (e.code === 'Escape') {
+        e.preventDefault();
+        // Close craft menu first if open
+        if (craftMenuOpen) {
+            craftMenuOpen = false;
+            document.getElementById('craft-menu').style.display = 'none';
+            return;
+        }
+        toggleSettings();
+    }
 });
 
 function tryPickup() {
@@ -3090,6 +3395,16 @@ function gameLoop() {
         composer.render();
     } else {
         renderer.render(scene, camera);
+    }
+
+    // FPS counter
+    fpsFrames++;
+    const fpsNow = performance.now();
+    if (fpsNow - fpsLastTime >= 500) {
+        const fps = Math.round(fpsFrames / ((fpsNow - fpsLastTime) / 1000));
+        fpsEl.textContent = fps + ' FPS';
+        fpsFrames = 0;
+        fpsLastTime = fpsNow;
     }
 }
 
